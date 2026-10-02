@@ -1,0 +1,10 @@
+   # Secret keys - never upload
+   .env
+
+   # Python virtual environment and cache
+   .venv/
+   __pycache__/
+   *.pyc
+
+   # Mac junk
+   .DS_Store
