@@ -8,3 +8,5 @@
 
    # Mac junk
    .DS_Store
+
+   *.db
