@@ -10,63 +10,63 @@ CREATE TABLE Part (
               ('CPU','Motherboard','RAM','GPU','PSU','Case','Cooler','Storage'))
 );
 
--- Subtype tables: one row per part of that type
+-- Subtype tables: specs can be NULL (unknown) for imported parts
 CREATE TABLE CPU (
     PartID                INTEGER PRIMARY KEY REFERENCES Part(PartID) ON DELETE CASCADE,
-    Socket                TEXT NOT NULL,
-    TDP_W                 INTEGER NOT NULL,
-    HasIntegratedGraphics INTEGER NOT NULL CHECK (HasIntegratedGraphics IN (0,1)),
+    Socket                TEXT,
+    TDP_W                 INTEGER,
+    HasIntegratedGraphics INTEGER CHECK (HasIntegratedGraphics IN (0,1)),
     Cores                 INTEGER,
     BoostClock            REAL
 );
 
 CREATE TABLE Motherboard (
     PartID      INTEGER PRIMARY KEY REFERENCES Part(PartID) ON DELETE CASCADE,
-    Socket      TEXT NOT NULL,
-    FormFactor  TEXT NOT NULL,
-    RAMType     TEXT NOT NULL,
-    RAMSlots    INTEGER NOT NULL,
-    MaxRAM_GB   INTEGER NOT NULL,
-    M2Slots     INTEGER NOT NULL
+    Socket      TEXT,
+    FormFactor  TEXT,
+    RAMType     TEXT,
+    RAMSlots    INTEGER,
+    MaxRAM_GB   INTEGER,
+    M2Slots     INTEGER
 );
 
 CREATE TABLE RAM (
     PartID            INTEGER PRIMARY KEY REFERENCES Part(PartID) ON DELETE CASCADE,
-    RAMType           TEXT NOT NULL,
+    RAMType           TEXT,
     Speed_MHz         INTEGER,
-    ModuleCount       INTEGER NOT NULL,
-    TotalCapacity_GB  INTEGER NOT NULL
+    ModuleCount       INTEGER,
+    TotalCapacity_GB  INTEGER
 );
 
 CREATE TABLE GPU (
     PartID     INTEGER PRIMARY KEY REFERENCES Part(PartID) ON DELETE CASCADE,
-    Length_mm  INTEGER NOT NULL,
-    TDP_W      INTEGER NOT NULL,
+    Length_mm  INTEGER,
+    TDP_W      INTEGER,
     VRAM_GB    INTEGER
 );
 
 CREATE TABLE PSU (
     PartID      INTEGER PRIMARY KEY REFERENCES Part(PartID) ON DELETE CASCADE,
-    Wattage     INTEGER NOT NULL,
-    FormFactor  TEXT NOT NULL
+    Wattage     INTEGER,
+    FormFactor  TEXT
 );
 
 -- Called PCCase because CASE is an SQL keyword
 CREATE TABLE PCCase (
     PartID              INTEGER PRIMARY KEY REFERENCES Part(PartID) ON DELETE CASCADE,
-    MaxGPULength_mm     INTEGER NOT NULL,
-    MaxCoolerHeight_mm  INTEGER NOT NULL,
-    PSUFormFactor       TEXT NOT NULL
+    MaxGPULength_mm     INTEGER,
+    MaxCoolerHeight_mm  INTEGER,
+    PSUFormFactor       TEXT
 );
 
 CREATE TABLE Cooler (
     PartID     INTEGER PRIMARY KEY REFERENCES Part(PartID) ON DELETE CASCADE,
-    Height_mm  INTEGER NOT NULL
+    Height_mm  INTEGER
 );
 
 CREATE TABLE Storage (
     PartID       INTEGER PRIMARY KEY REFERENCES Part(PartID) ON DELETE CASCADE,
-    Interface    TEXT NOT NULL,
+    Interface    TEXT,
     Capacity_GB  INTEGER
 );
 
