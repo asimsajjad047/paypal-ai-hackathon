@@ -1,3 +1,4 @@
+
 INSERT INTO Part (PartID, Name, Brand, Category) VALUES
  (1,  'Ryzen 5 7600',            'AMD',          'CPU'),
  (2,  'Core i5-12400F',          'Intel',        'CPU'),
