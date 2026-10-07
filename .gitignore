@@ -1,12 +1,16 @@
-   # Secret keys - never upload
-   .env
+# Secret keys - never upload
+.env
 
-   # Python virtual environment and cache
-   .venv/
-   __pycache__/
-   *.pyc
+# Python virtual environment and cache
+.venv/
+__pycache__/
+*.pyc
 
-   # Mac junk
-   .DS_Store
+# Database (rebuilt from schema.sql + seed.sql)
+*.db
 
-   *.db
+# API test output
+sample_*.json
+
+# Mac junk
+.DS_Store
