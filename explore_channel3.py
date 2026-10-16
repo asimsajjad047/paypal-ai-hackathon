@@ -1,8 +1,11 @@
 import json
+import os
 from dotenv import load_dotenv
 from channel3_sdk import Channel3
 
 load_dotenv()
+
+client = Channel3(api_key=os.getenv("CHANNEL3_API_KEY"))
 
 client = Channel3()
 
