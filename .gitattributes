@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Built bundle: hide from diffs and language stats
+static/rigagent3d.js linguist-generated=true -diff

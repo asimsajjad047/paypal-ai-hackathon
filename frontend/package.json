@@ -1,0 +1,21 @@
+{
+  "name": "rigagent-ui",
+  "private": true,
+  "description": "RigAgent's 3D / glass visuals, bundled into ../static/rigagent3d.js for the Streamlit app",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.jsx --bundle --format=esm --minify --target=es2020 --jsx=automatic --legal-comments=linked --outfile=../static/rigagent3d.js"
+  },
+  "dependencies": {
+    "@paper-design/shaders": "^0.0.82",
+    "@paper-design/shaders-react": "^0.0.82",
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.2",
+    "@shadergradient/react": "^2.4.20",
+    "esbuild": "^0.28.2",
+    "react": "19.2",
+    "react-dom": "19.2",
+    "three": "^0.180.0"
+  }
+}

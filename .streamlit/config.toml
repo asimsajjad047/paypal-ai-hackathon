@@ -1,0 +1,11 @@
+# Serves ./static at /app/static/ (the 3D/glass bundle lives there).
+[server]
+enableStaticServing = true
+
+[theme]
+base = "dark"
+primaryColor = "#8b6cff"
+backgroundColor = "#07071a"
+secondaryBackgroundColor = "#161833"
+textColor = "#eef1ff"
+baseRadius = "large"

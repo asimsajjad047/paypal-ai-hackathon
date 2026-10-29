@@ -25,3 +25,6 @@ sample_*.json
 
 # Test output
 .pytest_cache/
+
+# Front-end build tools (the built file in static/ is committed)
+frontend/node_modules/

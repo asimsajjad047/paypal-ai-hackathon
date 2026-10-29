@@ -1,0 +1,140 @@
+/*
+  RigAgent glass theme for Streamlit.
+  The "liquid glass" look (frosted blur, bright top edge, soft inner shine, deep shadow)
+  follows the style of liquid-glass-js (MIT, github.com/dashersw/liquid-glass-js),
+  done in CSS so it works on every Streamlit widget without a page snapshot.
+*/
+:root {
+  --rig-glass: linear-gradient(140deg, rgba(255,255,255,.16), rgba(255,255,255,.05) 45%, rgba(255,255,255,.08));
+  --rig-glass-strong: linear-gradient(140deg, rgba(255,255,255,.24), rgba(255,255,255,.08) 50%, rgba(255,255,255,.12));
+  --rig-edge: rgba(255,255,255,.22);
+  --rig-shine: inset 0 1px 0 rgba(255,255,255,.45), inset 0 -1px 0 rgba(255,255,255,.06),
+               inset 0 0 24px rgba(255,255,255,.05);
+  --rig-drop: 0 18px 40px rgba(3, 2, 20, .45);
+  --rig-new: #4fd1ff;
+  --rig-used: #ffb547;
+  --rig-accent: #8b6cff;
+}
+
+/* ---------- Let the gradient show through ---------- */
+body { background: #07071a; }
+#rig-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+[data-testid="stApp"], [data-testid="stAppViewContainer"], [data-testid="stMain"],
+[data-testid="stHeader"], [data-testid="stBottomBlockContainer"] { background: transparent !important; }
+.stApp { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", sans-serif; }
+
+/* Hide the empty boxes the background/loader components leave in the layout. */
+.st-key-rig-bg { display: none !important; }
+
+/* ---------- Glass surfaces ---------- */
+[data-testid="stSidebar"] > div:first-child,
+[data-testid="stForm"],
+[data-testid="stExpander"] details,
+[data-testid="stMetric"],
+[data-testid="stAlert"] > div,
+[data-testid="stChatMessage"],
+[class*="st-key-card-"] {   /* st.container(border=True, key="card-...") in app.py */
+  background: var(--rig-glass) !important;
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  border: 1px solid var(--rig-edge) !important;
+  box-shadow: var(--rig-shine), var(--rig-drop);
+  border-radius: 22px !important;
+}
+[data-testid="stSidebar"] { background: transparent !important; border-right: none; }
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"],
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p { color: rgba(238,241,255,.85) !important; }
+[data-testid="stSidebar"] > div:first-child { border-radius: 0 26px 26px 0 !important; border-left: none !important; }
+[data-testid="stForm"] { padding: 1.4rem 1.4rem 1rem; }
+[data-testid="stMetric"] { padding: .9rem 1.1rem; }
+[class*="st-key-card-"] { padding: 1rem 1.1rem; }
+[data-testid="stExpander"] details summary:hover { background: rgba(255,255,255,.06); }
+[data-testid="stDataFrame"] { border-radius: 16px; overflow: hidden; border: 1px solid var(--rig-edge);
+  box-shadow: var(--rig-shine); }
+
+/* Inputs: thin glass wells */
+[data-baseweb="input"], [data-baseweb="select"] > div, [data-baseweb="textarea"],
+[data-testid="stNumberInputContainer"] {
+  background: rgba(8, 8, 30, .35) !important;
+  border-color: rgba(255,255,255,.14) !important;
+  backdrop-filter: blur(10px);
+}
+
+/* ---------- Liquid glass buttons ----------
+   --mx/--my are set by rigagent3d.js as the pointer moves, so the shine follows it. */
+.stButton > button, .stFormSubmitButton > button, .stLinkButton > a, .stDownloadButton > button {
+  position: relative; overflow: hidden; isolation: isolate;
+  background: var(--rig-glass-strong) !important;
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  border: 1px solid rgba(255,255,255,.3) !important;
+  border-radius: 999px !important;
+  box-shadow: var(--rig-shine), 0 10px 26px rgba(3,2,20,.35);
+  color: #fff !important;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.stButton > button::before, .stFormSubmitButton > button::before, .stLinkButton > a::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(120px circle at var(--mx, 50%) var(--my, 0%), rgba(255,255,255,.35), transparent 60%);
+  opacity: .55; transition: opacity .2s;
+}
+.stButton > button:hover, .stFormSubmitButton > button:hover, .stLinkButton > a:hover {
+  transform: translateY(-1px) scale(1.015);
+  box-shadow: var(--rig-shine), 0 14px 34px rgba(60, 40, 255, .35);
+}
+.stButton > button:hover::before, .stFormSubmitButton > button:hover::before,
+.stLinkButton > a:hover::before { opacity: 1; }
+.stButton > button:active, .stFormSubmitButton > button:active { transform: scale(.98); }
+/* Primary = tinted glass */
+button[kind="primary"], button[kind="primaryFormSubmit"], a[kind="primary"],
+[data-testid="stBaseButton-primary"], [data-testid="stBaseButton-primaryFormSubmit"],
+[data-testid="stBaseLinkButton-primary"] {
+  background: linear-gradient(140deg, rgba(139,108,255,.85), rgba(79,209,255,.55)) !important;
+  border-color: rgba(255,255,255,.45) !important;
+}
+button:disabled { opacity: .45; }
+
+/* ---------- Text ---------- */
+h1, h2, h3 { letter-spacing: -.02em; }
+h1 { font-weight: 750 !important; }
+.rig-hero h1 {
+  margin: 0; padding: 0; font-size: 3rem; line-height: 1.05;
+  background: linear-gradient(100deg, #ffffff 10%, #bfe9ff 45%, #b9a6ff 80%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.rig-hero p { margin: .35rem 0 0; color: rgba(238,241,255,.78); font-size: 1.05rem; }
+
+/* ---------- 3D build view ---------- */
+.rig-build3d {
+  position: relative; height: 420px; border-radius: 26px; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 40%, rgba(139,108,255,.22), rgba(5,5,25,.62) 75%);
+  border: 1px solid var(--rig-edge);
+  box-shadow: var(--rig-shine), var(--rig-drop);
+  backdrop-filter: blur(6px);
+}
+.rig-legend {
+  position: absolute; left: 14px; bottom: 12px; display: flex; gap: 14px; align-items: center;
+  font-size: .78rem; color: rgba(255,255,255,.8);
+  padding: 6px 12px; border-radius: 999px; background: rgba(10,10,35,.45);
+  border: 1px solid rgba(255,255,255,.15); backdrop-filter: blur(12px);
+}
+.rig-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+.rig-hint { opacity: .65; }
+.rig-tag {
+  white-space: nowrap; font-size: 12px; color: #fff; padding: 7px 11px; border-radius: 12px;
+  background: rgba(15,14,45,.7); border: 1px solid rgba(255,255,255,.28);
+  backdrop-filter: blur(12px); box-shadow: 0 8px 20px rgba(0,0,0,.35); pointer-events: none;
+}
+.rig-tag b { color: #c9b8ff; margin-right: 4px; }
+.rig-tag span { display: block; opacity: .75; font-size: 11px; margin-top: 2px; }
+.rig-logo canvas, .rig-logo > div { display: block; }
+
+/* Badges for New / Used in part cards */
+.rig-pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .75rem;
+  border: 1px solid rgba(255,255,255,.25); margin-right: 6px; }
+.rig-pill.new { background: rgba(79,209,255,.18); color: var(--rig-new); }
+.rig-pill.used { background: rgba(255,181,71,.18); color: var(--rig-used); }
+
+@media (prefers-reduced-motion: reduce) {
+  .stButton > button, .stFormSubmitButton > button { transition: none; }
+}

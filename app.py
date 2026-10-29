@@ -14,6 +14,7 @@ import checkout
 import collect_prices
 import config
 import negotiation
+import ui
 import watcher
 import webhooks
 from db import init_db
@@ -29,6 +30,8 @@ state.setdefault("result", None)     # last design_build() result
 state.setdefault("agreed", {})       # {ListingID: negotiated price}
 state.setdefault("deals", {})        # {ListingID: negotiation result}
 state.setdefault("checkout", None)   # last create_checkout() result
+state.setdefault("focus", None)      # part clicked in the 3D view
+state.setdefault("effects", True)    # animated background / 3D motion on or off
 
 
 def go(page):
@@ -49,7 +52,7 @@ def handle_paypal_return():
     action, order_id = qp.get("paypal"), qp.get("token")
     if not action or not order_id:
         return False
-    st.title("🖥️ RigAgent")
+    ui.hero(state.effects)
     if action == "cancel":
         checkout.cancel_checkout(order_id)
         st.warning("Payment cancelled on PayPal. Nothing was charged.")
@@ -104,7 +107,7 @@ def need_build():
 # ---------- Pages ----------
 
 def page_design():
-    st.title("🖥️ RigAgent")
+    ui.hero(state.effects)
     st.write("Tell me your budget and what you play. I'll design a compatible PC, haggle for used "
              "parts, tell you whether to buy now or wait, and check out every seller in **one PayPal payment**.")
     with st.form("design"):
@@ -130,7 +133,7 @@ def page_design():
                 None if fps == "Let RigAgent decide" else int(fps), notes,
                 min_ram_gb=None if ram.startswith("Let") else int(ram.split()[0]),
                 min_storage_gb={"500 GB": 500, "1 TB": 1000, "2 TB": 2000}.get(storage))
-        state.agreed, state.deals, state.checkout = {}, {}, None
+        state.agreed, state.deals, state.checkout, state.focus = {}, {}, None, None
         state.pop("ratings", None)
         go("Build")
 
@@ -151,6 +154,12 @@ def page_build():
     c2.metric("Platform", build["platform"])
     c3.metric("Checks passed", f"{sum(c['passed'] for c in r['checks'])}/{len(r['checks'])}")
     st.caption(r["message"])
+
+    clicked = ui.build_3d(build, state.agreed, state.focus, state.effects)
+    if clicked is not None:
+        state.focus = clicked or None
+    if state.focus in build["parts"]:
+        part_card(state.focus, build["parts"][state.focus])
 
     st.dataframe(agent.build_as_rows(build, state.agreed), hide_index=True,
                  column_order=["Part", "Name", "Condition", "Seller", "Price (£)"])
@@ -175,7 +184,7 @@ def page_build():
     st.info(state.advice)
     for cat, rating in state.ratings.items():
         part = build["parts"][cat]
-        with st.container(border=True):
+        with st.container(border=True, key=f"card-rate-{cat}"):
             c1, c2 = st.columns([3, 1])
             c1.markdown(f"**{cat}: {part['Name']}** · {money(part['Price'])}")
             with c2:
@@ -190,6 +199,23 @@ def page_build():
         go("Haggle")
     if c2.button("Review and pay", type="primary"):
         go("Checkout")
+
+
+def part_card(category, part):
+    """Details for the part clicked in the 3D view."""
+    price = state.agreed.get(part["ListingID"], part["Price"])
+    kind = "used" if part["Condition"] == "Used" else "new"
+    with st.container(border=True, key="card-part"):
+        st.html(f'<span class="rig-pill {kind}">{part["Condition"]}</span>'
+                f'<b>{category}</b> · {part["Name"]}')
+        c1, c2 = st.columns(2)
+        c1.metric("Price", money(price))
+        c2.metric("Seller", part["Seller"])
+        rating = state.get("ratings", {}).get(category)
+        if rating:
+            st.caption(f"Buy or wait: **{rating['rating']}**. {rating['reason']}")
+        if part.get("URL"):
+            st.link_button("View listing", part["URL"])
 
 
 def swap_section(r):
@@ -217,7 +243,7 @@ def swap_section(r):
             state.agreed.pop(old["ListingID"], None)
             state.deals.pop(old["ListingID"], None)
             state.pop("ratings", None)
-            state.checkout = None
+            state.checkout, state.focus = None, None
             st.rerun()
 
 
@@ -232,7 +258,7 @@ def page_haggle():
         return
     for cat, part in used:
         lid = part["ListingID"]
-        with st.container(border=True):
+        with st.container(border=True, key=f"card-haggle-{lid}"):
             st.markdown(f"**{cat}: {part['Name']}** from {part['Seller']}, asking {money(part['Price'])}")
             max_price = st.slider("My maximum (£)", min_value=int(part["Price"] * 0.5),
                                   max_value=int(part["Price"]), value=int(part["Price"] * 0.95),
@@ -324,7 +350,7 @@ def page_orders():
     if held:
         st.subheader("Used parts in escrow")
     for p in held:
-        with st.container(border=True):
+        with st.container(border=True, key=f"card-held-{p['PaymentID']}"):
             st.write(f"**{p['Seller']}**: {money(p['Amount'])} held")
             c1, c2 = st.columns(2)
             try:
@@ -409,21 +435,27 @@ agent-to-agent commerce. Nothing is ever bought without you approving it on PayP
 
 # ---------- Layout ----------
 
+ui.setup(state.effects)
 if handle_paypal_return():
     st.stop()
 
 if "goto" in state:
     state.page = state.pop("goto")
 with st.sidebar:
-    st.header("🖥️ RigAgent")
+    c1, c2 = st.columns([1, 3], vertical_alignment="center")
+    with c1:
+        ui.logo(48, key="side-logo", effects=state.effects)
+    c2.header("RigAgent")
     st.radio("Go to", PAGES, key="page", label_visibility="collapsed")
+    st.toggle("Moving visuals", key="effects", help="Turn off the animated background and 3D motion "
+              "on slow computers.")
     st.divider()
     st.caption("Services")
     for name, value in config.status().items():
         st.caption(f"{name}: {value}")
     if st.button("Reset demo data"):
         init_db()
-        for k in ["result", "checkout", "ratings"]:
+        for k in ["result", "checkout", "ratings", "focus"]:
             state.pop(k, None)
         state.agreed, state.deals = {}, {}
         st.rerun()
