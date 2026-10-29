@@ -10,6 +10,7 @@ Charging with no click at all would need a saved payment method (PayPal Vault),
 which is the next step after the hackathon.
 """
 import checkout
+import live_prices
 from db import get_connection
 from picker import get_options
 
@@ -54,11 +55,17 @@ def _cheapest(part_id, allow_used):
 
 
 def check_watches(client=None):
-    """Run by collect_prices.py after fetching prices (or from the app). Returns triggered watches."""
+    """
+    Run from the app's "Check prices now" button (or collect_prices.py).
+    Looks up every watched part live first, so it compares against today's real prices.
+    Returns triggered watches.
+    """
+    watching = [w for w in list_watches() if w["Status"] == "Watching"]
+    if watching and live_prices.enabled():
+        live_prices.refresh(sorted({w["PartID"] for w in watching}),
+                            allow_used=any(w["AllowUsed"] for w in watching))
     triggered = []
-    for w in list_watches():
-        if w["Status"] != "Watching":
-            continue
+    for w in watching:
         best = _cheapest(w["PartID"], bool(w["AllowUsed"]))
         if best is None or best["Price"] > w["TargetPrice"] or best["Price"] > w["MaxPrice"]:
             continue

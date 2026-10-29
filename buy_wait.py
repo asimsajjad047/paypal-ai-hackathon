@@ -1,11 +1,13 @@
 """
 Buy now / Fair / Wait rating for each part.
 
-Plain maths decides the rating:
+Plain maths decides the rating, using REAL price history when we have it
+(Channel3's 90-day history is fetched live during each build; see live_prices.py):
   1. Trend: fit a straight line through the last 30 days of prices (least squares).
      Falling fast -> probably cheaper soon -> Wait.
   2. Position: is today's price near the 90-day low or high?
-  3. Season: Black Friday / Cyber Monday (late November) usually brings deals.
+  3. Channel3's own "low / typical / high" verdict on today's price, if live.
+  4. Season: Black Friday / Cyber Monday (late November) usually brings deals.
 Claude then (optionally) writes one short summary of all ratings in plain English.
 """
 from datetime import date, timedelta
@@ -14,16 +16,30 @@ import ai_client
 from db import get_connection
 
 
+MIN_POINTS = 7          # fewer days than this can't show a trend
+
+
 def get_history(part_id, condition="New", days=90):
+    """
+    Price history for one part, real history first:
+      * "real": Channel3's live history (fetched during this build) or eBay prices we've seen
+      * "test": made-up history from the seed data, only if there isn't enough real history
+    Returns (rows, source). Never mixes the two, because a real £529 next to a test
+    £549 the day before would look like a price drop that never happened.
+    """
+    since = (date.today() - timedelta(days=days)).isoformat()
     conn = get_connection()
     try:
-        rows = conn.execute(
-            "SELECT Date, MIN(Price) AS Price FROM PriceHistory "
-            "WHERE PartID = ? AND Condition = ? AND Date >= ? GROUP BY Date ORDER BY Date",
-            (part_id, condition, (date.today() - timedelta(days=days)).isoformat())).fetchall()
+        for source_filter, label in (("Source != 'test'", "real"), ("Source = 'test'", "test")):
+            rows = conn.execute(
+                "SELECT Date, MIN(Price) AS Price FROM PriceHistory "
+                f"WHERE PartID = ? AND Condition = ? AND Date >= ? AND {source_filter} "
+                "GROUP BY Date ORDER BY Date", (part_id, condition, since)).fetchall()
+            if len(rows) >= MIN_POINTS:
+                return [dict(r) for r in rows], label
     finally:
         conn.close()
-    return [dict(r) for r in rows]
+    return [dict(r) for r in rows], label
 
 
 def slope_per_day(prices):
@@ -50,12 +66,16 @@ def days_to_black_friday(today=None):
     return 365
 
 
-def rate_part(part_id, current_price, condition="New", today=None):
-    """Returns {"rating", "confidence", "reason", "history"}."""
-    history = get_history(part_id, condition)
+def rate_part(part_id, current_price, condition="New", today=None, price_status=None):
+    """
+    Returns {"rating", "confidence", "reason", "history", "history_source"}.
+    price_status = Channel3's own verdict on today's price ("low"/"typical"/"high"), if we have it.
+    """
+    history, history_source = get_history(part_id, condition)
     prices = [h["Price"] for h in history]
-    if len(prices) < 7:
+    if len(prices) < MIN_POINTS:
         return {"rating": "Fair", "confidence": 0.3, "history": history,
+                "history_source": history_source,
                 "reason": "Not enough price history yet to spot a trend."}
 
     recent = prices[-30:]
@@ -82,6 +102,13 @@ def rate_part(part_id, current_price, condition="New", today=None):
         score -= 1.0
         reasons.append(f"it's near its 90-day high (£{high:.0f})")
 
+    if price_status == "low":
+        score += 0.5
+        reasons.append("Channel3 rates today's price as low for this part")
+    elif price_status == "high":
+        score -= 0.5
+        reasons.append("Channel3 rates today's price as high for this part")
+
     if 0 <= bf_days <= 30 and condition == "New":
         score -= 0.5
         reasons.append(f"Black Friday is in {bf_days} days" if bf_days else "it's Black Friday")
@@ -97,13 +124,14 @@ def rate_part(part_id, current_price, condition="New", today=None):
     if len(reasons) > 1:
         reason += ", " + ", ".join(reasons[1:])
     return {"rating": rating, "confidence": confidence, "history": history,
-            "reason": reason + ".", "trend_pct_30d": round(trend_pct_30d, 1),
+            "history_source": history_source, "reason": reason + ".", "trend_pct_30d": round(trend_pct_30d, 1),
             "low_90d": low, "high_90d": high}
 
 
 def rate_build(parts):
     """Rate every part in a build. parts = picker build["parts"]."""
-    return {cat: rate_part(p["PartID"], p["Price"], p["Condition"]) for cat, p in parts.items()}
+    return {cat: rate_part(p["PartID"], p["Price"], p["Condition"], price_status=p.get("PriceStatus"))
+            for cat, p in parts.items()}
 
 
 def summarise(parts, ratings):

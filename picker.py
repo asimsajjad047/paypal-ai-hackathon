@@ -20,7 +20,10 @@ HELPER_CATEGORIES = ["PSU", "Case"]  # may need swapping to make an upgrade fit
 # ---------- Loading data ----------
 
 def get_options(allow_used):
-    """Every buyable part, cheapest listing only, with the specs the picker needs."""
+    """
+    Every buyable part with the specs the picker needs, one listing each:
+    the cheapest REAL listing if we fetched one recently, else the cheapest test one.
+    """
     conditions = ("New", "Used") if allow_used else ("New",)
     placeholders = ",".join("?" * len(conditions))
 
@@ -42,14 +45,15 @@ def get_options(allow_used):
             LEFT JOIN RAM r     ON r.PartID = p.PartID
             LEFT JOIN Storage st ON st.PartID = p.PartID
             WHERE l.Condition IN ({placeholders})
-            ORDER BY l.Price
+            -- real listings seen in the last day come first, then test prices
+            ORDER BY (l.Source = 'test' OR l.LastSeen < date('now', '-1 day')), l.Price
         """, conditions).fetchall()
     finally:
         conn.close()
 
     options = {c: {} for c in CATEGORIES}
     for r in rows:
-        # sorted by price, so the first listing seen for a part is its cheapest
+        # sorted real-first then by price, so the first listing seen is the one to use
         if r["PartID"] not in options[r["Category"]]:
             options[r["Category"]][r["PartID"]] = dict(r)
     # each list stays sorted cheapest first

@@ -47,6 +47,10 @@ EBAY_CLIENT_ID = _get("EBAY_CLIENT_ID")          # eBay "App ID"
 EBAY_CLIENT_SECRET = _get("EBAY_CLIENT_SECRET")  # eBay "Cert ID"
 EBAY_BASE_URL = _get("EBAY_BASE_URL", "https://api.ebay.com")
 
+# Live prices: search Channel3/eBay for the picked parts every time someone asks
+# for a build (needs at least one of the keys above). Set to true to turn it off.
+LIVE_PRICES = not _flag("RIGAGENT_OFFLINE_PRICES")
+
 # ---------- Database ----------
 DB_PATH = _get("RIGAGENT_DB")   # empty = pcparts.db next to db.py
 
@@ -58,4 +62,6 @@ def status():
         "PayPal": f"sandbox ({PAYPAL_CHECKOUT_MODE})" if PAYPAL_ENABLED else "mock checkout",
         "Channel3": "key set" if CHANNEL3_API_KEY else "no key (test data)",
         "eBay": "key set" if EBAY_CLIENT_ID and EBAY_CLIENT_SECRET else "no key (test data)",
+        "Prices": "live on every build" if LIVE_PRICES and (CHANNEL3_API_KEY or EBAY_CLIENT_ID)
+                  else "test data",
     }
