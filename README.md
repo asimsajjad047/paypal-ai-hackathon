@@ -98,8 +98,32 @@ flowchart LR
 | `listings.py`, `fetch_channel3.py`, `fetch_ebay.py`, `collect_prices.py` | Real prices: match web listings to our parts and save them |
 | `mcp_server.py` | MCP server |
 | `check_paypal.py` | Live sandbox check: tests each PayPal call and prints PASS/FAIL |
+| `ui.py`, `static/`, `frontend/` | The look: 3D build view, moving gradient, liquid-metal logo, glass styling (see below) |
 | `server.py`, `webhooks.py` | Runs the app plus the `/paypal/webhook` URL in one process; verifies and handles PayPal events |
-| `tests/` | 29 tests (`python -m pytest`) |
+| `tests/` | 31 tests (`python -m pytest`) |
+
+## The look (3D and glass)
+
+The app is still Streamlit, with one extra JavaScript file for the visuals:
+
+| What you see | Made with |
+|---|---|
+| Moving gradient behind the whole app | [ShaderGradient](https://github.com/ruucm/shadergradient) (MIT) |
+| 3D model of your build: parts fly into the case, hover for names, click a part for its details | [react-three-fiber](https://github.com/pmndrs/react-three-fiber) and drei (MIT) |
+| Liquid-metal "R" logo | Paper's LiquidMetal shader, `@paper-design/shaders-react` (Apache-2.0), the shader behind [liquid-logo](https://github.com/paper-design/liquid-logo) |
+| Frosted glass panels and buttons whose shine follows the mouse | CSS in `static/rigagent.css`, styled after [liquid-glass-js](https://github.com/dashersw/liquid-glass-js) (MIT) |
+
+How it fits together: `frontend/src` is React code. `npm run build` bundles it into `static/rigagent3d.js`, which Streamlit serves at `/app/static/` (turned on in `.streamlit/config.toml`). `ui.py` puts small `st.components.v2` components on the page that load that file. The built file is committed, so Render and your laptop never need Node.
+
+To change the visuals:
+
+```bash
+cd frontend
+npm install
+npm run build     # rewrites ../static/rigagent3d.js
+```
+
+The sidebar's **Moving visuals** switch turns off the animation on slow computers.
 
 ## Run it locally
 
@@ -164,4 +188,4 @@ Dashboard, **New, Blueprint**, pick this repo. `render.yaml` creates the web app
 
 ## License
 
-MIT
+MIT. The bundled libraries keep their own licences (MIT and Apache-2.0); see `static/rigagent3d.js.LEGAL.txt` and `THIRD_PARTY_NOTICES.md`.
