@@ -10,11 +10,12 @@ Building a PC is confusing (parts that don't fit together), expensive, and timin
 
 ## What it does
 
-1. **Tell it what you want** in plain English: budget, games, new or used, anything else ("I stream on Twitch").
+1. **Tell it what you want** in plain English: budget, games, new or used, and optionally resolution, FPS, RAM and storage, plus anything else ("I stream on Twitch").
 2. **Claude turns that into hardware requirements** (it recognises games, even ones not in our table, and estimates how demanding they are). Python checks every number.
 3. **The part picker** finds the cheapest compatible build that meets the requirements, then spends leftover budget on the upgrades that add the most performance per pound.
 4. **8 compatibility rules** (socket, RAM type, PSU wattage, PSU size, GPU length, board size, cooler socket, cooler height) are checked by code, not AI.
 5. **FPS estimates** for each of your games, with the bottleneck (CPU or GPU).
+   **Swap a part** if you prefer another one: only parts that pass all 8 rules are offered, and everything is re-checked.
 6. **Claude explains the build** using only facts the code worked out.
 7. **Buy now / Fair / Wait** for every part: price trend (least-squares line over 30 days), position in the 90-day range, and a Black Friday rule, with a price chart.
 8. **Haggling:** a buyer agent negotiates with each used seller's agent, live on screen. **Python guards** enforce your maximum price and the seller's floor, whatever the AI says.
@@ -34,6 +35,7 @@ Building a PC is confusing (parts that don't fit together), expensive, and timin
 | Payouts | `checkout.py` (marketplace mode) | Pay each shop after capture; release escrow when the buyer confirms delivery |
 | Refunds (captures) | `checkout.py` | Partial refund for a used part with a problem |
 | `PayPal-Request-Id` idempotency keys | `paypal_client.py` | Safe retries: a page refresh can't capture or refund twice |
+| Webhooks + signature verification | `webhooks.py`, `server.py` | Capture orders even if the buyer closes the tab; track payout and capture events |
 
 Two checkout modes (`PAYPAL_CHECKOUT_MODE`):
 
@@ -95,7 +97,8 @@ flowchart LR
 | `watcher.py` | Price watch / auto-buy |
 | `listings.py`, `fetch_channel3.py`, `fetch_ebay.py`, `collect_prices.py` | Real prices: match web listings to our parts and save them |
 | `mcp_server.py` | MCP server |
-| `tests/` | 23 tests (`python -m pytest`) |
+| `server.py`, `webhooks.py` | Runs the app plus the `/paypal/webhook` URL in one process; verifies and handles PayPal events |
+| `tests/` | 29 tests (`python -m pytest`) |
 
 ## Run it locally
 
@@ -140,6 +143,15 @@ python collect_prices.py             # everything, then check price watches
 ## Deploy on Render
 
 Dashboard, **New, Blueprint**, pick this repo. `render.yaml` creates the web app and an HTTP MCP server, and asks for each secret. Set `APP_BASE_URL` to the app's Render URL so PayPal can send buyers back.
+
+**Webhooks:** in your PayPal sandbox app, add a webhook with the URL `https://<your-app>.onrender.com/paypal/webhook` and "All events", then copy its Webhook ID into `PAYPAL_WEBHOOK_ID` on Render. Every event's signature is checked with PayPal before RigAgent trusts it. Locally, use `streamlit run server.py` to run the same thing (PayPal can't reach localhost, so webhooks only arrive once deployed).
+
+## Keeping secrets safe (before making the repo public)
+
+- Keys live only in `.env` (ignored by git) or in Render's dashboard. `.env.example` has empty placeholders only.
+- `.gitignore` also blocks `.env.*`, `*.pem`, `*.key`, `.streamlit/secrets.toml`, database files and `sample_*.json`.
+- Before you publish, run `git status` and check no `.env` appears, and `git log --all --name-only | grep -i env` should only show `.env.example`.
+- After it's public, GitHub's free secret scanning will alert you if a key ever slips in; if one does, revoke that key in its dashboard straight away (deleting the commit is not enough).
 
 ## Honest limits
 

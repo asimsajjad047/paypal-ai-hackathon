@@ -1,5 +1,5 @@
 # Install with:  pip install -r requirements.txt
-streamlit>=1.50        # the web app (also installs altair for charts)
+streamlit>=1.66        # the web app (st.App for the webhook route; installs altair)
 anthropic>=2.3         # Claude API (requirements, explanations, negotiation)
 requests>=2.32         # PayPal and eBay REST calls
 python-dotenv>=1.0     # reads .env

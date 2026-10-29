@@ -6,8 +6,10 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    # db.py rebuilds pcparts.db from schema.sql + seed.sql on first start
-    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    # server.py = the Streamlit app + the PayPal webhook URL (/paypal/webhook) in one process,
+    # so both share pcparts.db. db.py rebuilds it from schema.sql + seed.sql on first start.
+    startCommand: streamlit run server.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    healthCheckPath: /healthz
     envVars:
       - key: PYTHON_VERSION
         value: "3.13.5"
@@ -21,6 +23,8 @@ services:
         sync: false
       - key: PAYPAL_CHECKOUT_MODE
         value: marketplace
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
       - key: CHANNEL3_API_KEY
         sync: false
       - key: EBAY_CLIENT_ID

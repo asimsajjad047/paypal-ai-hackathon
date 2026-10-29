@@ -169,6 +169,16 @@ CREATE TABLE SellerPayment (
     Note         TEXT
 );
 
+-- Every PayPal webhook we receive (EventID makes repeats harmless)
+CREATE TABLE WebhookEvent (
+    EventID      TEXT PRIMARY KEY,            -- PayPal's event ID, e.g. WH-...
+    EventType    TEXT NOT NULL,               -- e.g. PAYMENT.CAPTURE.COMPLETED
+    ResourceID   TEXT,                        -- order, capture or payout item ID
+    Summary      TEXT,
+    Handled      TEXT,                        -- what RigAgent did about it
+    Received     TEXT DEFAULT (datetime('now'))
+);
+
 -- ============ AGENT HISTORY ============
 
 CREATE TABLE Negotiation (

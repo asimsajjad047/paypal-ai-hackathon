@@ -37,3 +37,14 @@ def test_other_pages_render():
         at.session_state["goto"] = page
         at.run()
         assert not at.exception, page
+
+
+def test_swap_a_part_in_the_app():
+    at = AppTest.from_file(APP, default_timeout=60).run()
+    _click(at, "Build my PC")
+    before = at.session_state.result["build"]["parts"]["GPU"]["Name"]
+    at.selectbox(key="swap-cat").set_value("GPU").run()
+    _click(at, "Swap")
+    after = at.session_state.result["build"]["parts"]["GPU"]["Name"]
+    assert before != after
+    assert all(c["passed"] for c in at.session_state.result["checks"])

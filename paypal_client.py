@@ -9,6 +9,7 @@ APIs used:
              POST /v2/checkout/orders/{id}/capture       take the money after approval
   Payouts    POST /v1/payments/payouts                   pay sellers (marketplace mode)
   Payments   POST /v2/payments/captures/{id}/refund      refund the buyer (escrow)
+  Webhooks   POST /v1/notifications/verify-webhook-signature   prove a webhook is genuine
 
 If PAYPAL_CLIENT_ID/SECRET are missing, MockPayPal does the same things in memory
 (well, in the database) so the whole flow can still be demoed offline.
@@ -102,6 +103,20 @@ class PayPalClient:
                 "note_to_payer": note[:255] or "Refund from RigAgent"}
         return self._request("POST", f"/v2/payments/captures/{capture_id}/refund", body,
                              f"refund-{capture_id}-{amount:.2f}")
+
+    def verify_webhook(self, headers, event, webhook_id):
+        """Ask PayPal whether this webhook really came from PayPal (not a forger)."""
+        body = {
+            "auth_algo": headers.get("paypal-auth-algo"),
+            "cert_url": headers.get("paypal-cert-url"),
+            "transmission_id": headers.get("paypal-transmission-id"),
+            "transmission_sig": headers.get("paypal-transmission-sig"),
+            "transmission_time": headers.get("paypal-transmission-time"),
+            "webhook_id": webhook_id,
+            "webhook_event": event,
+        }
+        res = self._request("POST", "/v1/notifications/verify-webhook-signature", body)
+        return res.get("verification_status") == "SUCCESS"
 
     def payout(self, batch_id, items, currency):
         """items = [{"email", "amount", "note", "ref"}]: send money to sellers."""

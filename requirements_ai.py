@@ -127,9 +127,11 @@ def _best_available():
 # ---------- Main entry point ----------
 
 def build_requirements(budget, condition="new", games=(), resolution=None,
-                       target_fps=None, notes=""):
+                       target_fps=None, notes="", min_ram_gb=None, min_storage_gb=None):
     """
     condition: "new", "used" or "both".
+    resolution, target_fps, min_ram_gb, min_storage_gb: the user's own choices
+    (None = let RigAgent decide). They always win over the AI's guesses.
     Returns (requirements_for_picker, details_for_the_UI)
     """
     games = [g for g in games if g and g.strip()]
@@ -146,6 +148,10 @@ def build_requirements(budget, condition="new", games=(), resolution=None,
         raw["resolution"] = resolution
     if target_fps:
         raw["target_fps"] = target_fps
+    if min_ram_gb:
+        raw["min_ram_gb"] = min_ram_gb
+    if min_storage_gb:
+        raw["min_storage_gb"] = min_storage_gb
     details = _validate(raw)
 
     min_gpu, min_cpu = required_scores(details["games"], details["resolution"], details["target_fps"])

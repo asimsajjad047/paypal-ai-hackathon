@@ -35,13 +35,15 @@ _builds = {}
 
 @server.tool()
 def design_build(budget_gbp: float, games: list[str], condition: str = "new",
-                 resolution: str = "", target_fps: int = 0, notes: str = "") -> dict:
+                 resolution: str = "", target_fps: int = 0, notes: str = "",
+                 ram_gb: int = 0, storage_gb: int = 0) -> dict:
     """Design a compatible gaming PC within a budget in GBP.
     condition: "new", "used" or "both". resolution: "1080p", "1440p" or "4K" (optional).
-    notes: anything else the user said, in plain English.
+    notes: anything else the user said, in plain English. ram_gb/storage_gb: 0 = decide for me.
     Returns a build_id to use with the other tools."""
     result = agent.design_build(budget_gbp, condition, games, resolution or None,
-                                target_fps or None, notes)
+                                target_fps or None, notes,
+                                min_ram_gb=ram_gb or None, min_storage_gb=storage_gb or None)
     if not result["ok"]:
         return {"ok": False, "message": result["message"]}
     build_id = f"b{len(_builds) + 1}"

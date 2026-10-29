@@ -15,6 +15,7 @@ import collect_prices
 import config
 import negotiation
 import watcher
+import webhooks
 from db import init_db
 from paypal_client import PayPalError
 from performance import GAMES
@@ -114,6 +115,9 @@ def page_design():
         c1, c2 = st.columns(2)
         resolution = c1.selectbox("Resolution", ["Let RigAgent decide", "1080p", "1440p", "4K"])
         fps = c2.selectbox("Target FPS", ["Let RigAgent decide", 60, 120, 144, 240])
+        c3, c4 = st.columns(2)
+        ram = c3.selectbox("RAM", ["Let RigAgent decide", "16 GB", "32 GB", "64 GB"])
+        storage = c4.selectbox("Storage", ["Let RigAgent decide", "500 GB", "1 TB", "2 TB"])
         notes = st.text_area("Anything else?", placeholder="I stream on Twitch, want it quiet, small desk...")
         submitted = st.form_submit_button("Build my PC", type="primary")
     if submitted:
@@ -123,7 +127,9 @@ def page_design():
             state.result = agent.design_build(
                 budget, cond, all_games,
                 None if resolution.startswith("Let") else resolution,
-                None if fps == "Let RigAgent decide" else int(fps), notes)
+                None if fps == "Let RigAgent decide" else int(fps), notes,
+                min_ram_gb=None if ram.startswith("Let") else int(ram.split()[0]),
+                min_storage_gb={"500 GB": 500, "1 TB": 1000, "2 TB": 2000}.get(storage))
         state.agreed, state.deals, state.checkout = {}, {}, None
         state.pop("ratings", None)
         go("Build")
@@ -159,6 +165,8 @@ def page_build():
         for c in r["checks"]:
             st.write(f"{'✅' if c['passed'] else '❌'} **{c['rule']}**: {c['detail']}")
 
+    swap_section(r)
+
     st.subheader("Buy now or wait?")
     if "ratings" not in state:
         with st.spinner("Checking price trends..."):
@@ -182,6 +190,35 @@ def page_build():
         go("Haggle")
     if c2.button("Review and pay", type="primary"):
         go("Checkout")
+
+
+def swap_section(r):
+    """Let the user replace one part with another that still passes every rule."""
+    with st.expander("Swap a part"):
+        category = st.selectbox("Part to change", list(r["build"]["parts"]), key="swap-cat")
+        alts = agent.alternatives(r, category)
+        if not alts:
+            st.caption("No other part fits with the rest of this build.")
+            return
+        labels = {}
+        for a in alts:
+            sign = "+" if a["diff"] >= 0 else "-"
+            label = (f"{a['Name']} ({a['Condition']}, {a['Seller']}) {money(a['Price'])} "
+                     f"[{sign}£{abs(a['diff']):.0f}]")
+            if not a["meets_minimum"]:
+                label += " ⚠️ below what your games need"
+            labels[label] = a
+        choice = labels[st.selectbox("Replace with (only compatible parts are listed)", list(labels),
+                                     key=f"swap-{category}")]
+        if st.button("Swap"):
+            old = r["build"]["parts"][category]
+            with st.spinner("Re-checking the build..."):
+                state.result = agent.swap_part(r, category, choice)
+            state.agreed.pop(old["ListingID"], None)
+            state.deals.pop(old["ListingID"], None)
+            state.pop("ratings", None)
+            state.checkout = None
+            st.rerun()
 
 
 def page_haggle():
@@ -299,6 +336,14 @@ def page_orders():
                     st.rerun()
             except (PayPalError, ValueError) as e:
                 st.error(str(e))
+    webhook_log()
+
+
+def webhook_log():
+    events = webhooks.recent_events()
+    if events:
+        with st.expander("PayPal webhook events"):
+            st.dataframe(events, hide_index=True)
 
 
 def page_watch():

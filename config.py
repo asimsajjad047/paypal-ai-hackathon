@@ -35,6 +35,8 @@ PAYPAL_CURRENCY = _get("PAYPAL_CURRENCY", "GBP")
 # split       = one order with one purchase unit per seller, paid straight to them
 PAYPAL_CHECKOUT_MODE = _get("PAYPAL_CHECKOUT_MODE", "marketplace")
 PAYPAL_ENABLED = bool(PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET)
+# From PayPal dashboard -> your app -> Webhooks, after adding <APP_BASE_URL>/paypal/webhook
+PAYPAL_WEBHOOK_ID = _get("PAYPAL_WEBHOOK_ID")
 
 # Where PayPal sends the buyer back after approving (your Streamlit URL)
 APP_BASE_URL = _get("APP_BASE_URL", "http://localhost:8501").rstrip("/")
