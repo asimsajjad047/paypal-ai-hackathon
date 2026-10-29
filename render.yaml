@@ -1,0 +1,72 @@
+# Render Blueprint: Dashboard -> New -> Blueprint -> pick this repo.
+# Secrets are marked sync: false, so Render asks you for them (they never go in git).
+services:
+  - type: web
+    name: rigagent
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # db.py rebuilds pcparts.db from schema.sql + seed.sql on first start
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.5"
+      - key: APP_BASE_URL          # e.g. https://rigagent.onrender.com
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_CHECKOUT_MODE
+        value: marketplace
+      - key: CHANNEL3_API_KEY
+        sync: false
+      - key: EBAY_CLIENT_ID
+        sync: false
+      - key: EBAY_CLIENT_SECRET
+        sync: false
+      - key: SELLER_1_EMAIL
+        sync: false
+      - key: SELLER_2_EMAIL
+        sync: false
+      - key: SELLER_3_EMAIL
+        sync: false
+      - key: SELLER_4_EMAIL
+        sync: false
+      - key: SELLER_5_EMAIL
+        sync: false
+
+  # MCP server over HTTP, so remote AI clients can connect to https://<name>.onrender.com/mcp
+  - type: web
+    name: rigagent-mcp
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python mcp_server.py --http
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.5"
+      - key: APP_BASE_URL
+        sync: false
+      # The public MCP endpoint has no login, so keep it on the free offline rules
+      # (otherwise anyone could spend your Claude credits). Claude Desktop users run
+      # mcp_server.py locally with their own key instead.
+      - key: RIGAGENT_OFFLINE_AI
+        value: "true"
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+
+# Daily price collection: each Render service has its own disk, so a separate
+# Cron Job can't write to the web app's SQLite file. For the demo, use the
+# "Fetch live prices" button on the Price watch page instead. With a shared
+# database (e.g. Render Postgres) you could add:
+#  - type: cron
+#    name: rigagent-prices
+#    runtime: python
+#    schedule: "0 6 * * *"
+#    buildCommand: pip install -r requirements.txt
+#    startCommand: python collect_prices.py

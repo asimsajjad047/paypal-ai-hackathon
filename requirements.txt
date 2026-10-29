@@ -1,13 +1,8 @@
-annotated-types==0.8.0
-anyio==4.15.1
-certifi==2026.7.22
-channel3-sdk==4.1.0
-h11==0.16.0
-httpcore==1.0.9
-httpx==0.28.1
-idna==3.20
-pydantic==2.13.5
-pydantic_core==2.46.5
-python-dotenv==1.2.4
-typing-inspection==0.4.4
-typing_extensions==4.16.0
+# Install with:  pip install -r requirements.txt
+streamlit>=1.50        # the web app (also installs altair for charts)
+anthropic>=2.3         # Claude API (requirements, explanations, negotiation)
+requests>=2.32         # PayPal and eBay REST calls
+python-dotenv>=1.0     # reads .env
+channel3-sdk>=4.1      # new-part prices from UK shops
+mcp>=2.3               # MCP server so other AIs can use RigAgent
+pytest>=8              # tests:  python -m pytest
