@@ -6,6 +6,7 @@ RigAgent part picker - "minimum first, then upgrade"
 3. Spend leftover budget on upgrades, best performance-per-£ first
 4. Return the best final build + a list of upgrades (for the AI to explain later)
 """
+from functools import lru_cache
 from itertools import product
 from db import get_connection
 from compatibility import check_build
@@ -27,14 +28,16 @@ def get_options(allow_used):
     try:
         rows = conn.execute(f"""
             SELECT p.PartID, p.Name, p.Category,
-                   l.ListingID, l.Price, l.Condition, s.Name AS Seller,
+                   l.ListingID, l.Price, l.Condition, l.URL, l.Source,
+                   s.SellerID, s.Name AS Seller, s.SellerType,
                    COALESCE(c.BenchmarkScore, g.BenchmarkScore, 0)     AS Benchmark,
-                   c.Socket                                            AS Socket,
+                   COALESCE(c.Socket, m.Socket)                        AS Socket,
                    COALESCE(r.TotalCapacity_GB, st.Capacity_GB, 0)     AS Capacity_GB
             FROM Listing l
             JOIN Part p        ON p.PartID = l.PartID
             JOIN Seller s      ON s.SellerID = l.SellerID
             LEFT JOIN CPU c     ON c.PartID = p.PartID
+            LEFT JOIN Motherboard m ON m.PartID = p.PartID
             LEFT JOIN GPU g     ON g.PartID = p.PartID
             LEFT JOIN RAM r     ON r.PartID = p.PartID
             LEFT JOIN Storage st ON st.PartID = p.PartID
@@ -73,22 +76,28 @@ def total(parts):
     return sum(item["Price"] for item in parts.values())
 
 
-def score(parts):
-    """Gaming performance: GPU matters most, CPU counts half."""
-    return parts["GPU"]["Benchmark"] + 0.5 * parts["CPU"]["Benchmark"]
+def score(parts, cpu_cap=None):
+    """
+    Gaming performance: GPU matters most, CPU counts half.
+    cpu_cap: CPU power above this doesn't help your games, so it scores nothing
+    (stops the picker buying a 20-core CPU when the GPU is what matters).
+    """
+    cpu = parts["CPU"]["Benchmark"]
+    if cpu_cap:
+        cpu = min(cpu, cpu_cap)
+    return parts["GPU"]["Benchmark"] + 0.5 * cpu
+
+
+@lru_cache(maxsize=None)
+def _compatible_ids(ids):
+    """check_build hits the database, so remember answers for the same 7 parts."""
+    return all(r["passed"] for r in check_build(*ids))
 
 
 def is_compatible(parts):
-    results = check_build(
-        cpu_id=parts["CPU"]["PartID"],
-        motherboard_id=parts["Motherboard"]["PartID"],
-        ram_id=parts["RAM"]["PartID"],
-        gpu_id=parts["GPU"]["PartID"],
-        psu_id=parts["PSU"]["PartID"],
-        case_id=parts["Case"]["PartID"],
-        cooler_id=parts["Cooler"]["PartID"],
-    )
-    return all(r["passed"] for r in results)
+    ids = tuple(parts[c]["PartID"] for c in
+                ["CPU", "Motherboard", "RAM", "GPU", "PSU", "Case", "Cooler"])
+    return _compatible_ids(ids)
 
 
 # ---------- Step 2: cheapest base build for one platform ----------
@@ -98,7 +107,7 @@ def cheapest_base(options, socket):
     pools = {}
     for cat in CATEGORIES:
         items = options[cat]
-        if cat == "CPU":
+        if cat in ("CPU", "Motherboard"):
             items = [i for i in items if i["Socket"] == socket]
         pools[cat] = items[:TOP_K]          # only the few cheapest per category
         if not pools[cat]:
@@ -135,10 +144,10 @@ def try_fix(trial, original, options, extra, leftover):
     return None, None, None
 
 
-def find_best_swap(parts, options, leftover):
+def find_best_swap(parts, options, leftover, cpu_cap=None):
     """Look at every possible upgrade; return the best performance-per-£ one that fits."""
     best = None
-    current_score = score(parts)
+    current_score = score(parts, cpu_cap)
 
     for cat in UPGRADE_CATEGORIES:
         for new in options[cat]:
@@ -146,7 +155,7 @@ def find_best_swap(parts, options, leftover):
                 continue
             trial = dict(parts)
             trial[cat] = new
-            gain = score(trial) - current_score
+            gain = score(trial, cpu_cap) - current_score
             extra = new["Price"] - parts[cat]["Price"]
             if gain <= 0 or extra > leftover:
                 continue
@@ -165,11 +174,11 @@ def find_best_swap(parts, options, leftover):
     return best
 
 
-def upgrade(parts, options, budget):
+def upgrade(parts, options, budget, cpu_cap=None):
     """Keep making the best-value upgrade until nothing else fits the budget."""
     upgrades = []
     while True:
-        swap = find_best_swap(parts, options, budget - total(parts))
+        swap = find_best_swap(parts, options, budget - total(parts), cpu_cap)
         if swap is None:
             break
         for cat in swap["changed"]:
@@ -186,9 +195,11 @@ def upgrade(parts, options, budget):
 def pick_build(budget, requirements):
     """
     requirements = {"min_gpu_score", "min_cpu_score", "min_ram_gb",
-                    "min_storage_gb", "allow_used"}
+                    "min_storage_gb", "allow_used"}  (+ optional "cpu_score_cap")
     Returns (best_build or None, message)
     """
+    _compatible_ids.cache_clear()       # prices/parts may have changed since last time
+    cpu_cap = requirements.get("cpu_score_cap")
     options = get_options(requirements["allow_used"])
     options = {c: [i for i in items if meets_minimum(i, requirements)]
                for c, items in options.items()}
@@ -209,9 +220,9 @@ def pick_build(budget, requirements):
             if cheapest_over_budget is None or base_total < cheapest_over_budget:
                 cheapest_over_budget = base_total
             continue
-        final, ups = upgrade(base, options, budget)
+        final, ups = upgrade(base, options, budget, cpu_cap)
         candidates.append({"platform": socket, "parts": final,
-                           "total": total(final), "score": score(final),
+                           "total": total(final), "score": score(final, cpu_cap),
                            "base_total": base_total, "upgrades": ups})
 
     if not candidates:
