@@ -97,6 +97,7 @@ flowchart LR
 | `watcher.py` | Price watch / auto-buy |
 | `listings.py`, `fetch_channel3.py`, `fetch_ebay.py`, `collect_prices.py` | Real prices: match web listings to our parts and save them |
 | `mcp_server.py` | MCP server |
+| `check_paypal.py` | Live sandbox check: tests each PayPal call and prints PASS/FAIL |
 | `server.py`, `webhooks.py` | Runs the app plus the `/paypal/webhook` URL in one process; verifies and handles PayPal events |
 | `tests/` | 29 tests (`python -m pytest`) |
 
@@ -117,8 +118,9 @@ With no keys it runs fully offline: offline AI rules, test prices, and a mock Pa
 
 1. developer.paypal.com, Sandbox, **Apps & Credentials**: create an app; copy the Client ID and Secret into `.env`.
 2. **Testing Tools, Sandbox Accounts**: create a personal (buyer) account and 3 to 5 business (seller) accounts. Put the business emails in `SELLER_1_EMAIL` ... `SELLER_5_EMAIL` and run `python db.py` again.
-3. Run the app, build a PC, press **Approve and pay with PayPal**, and log in with the sandbox buyer account.
-4. If PayPal holds GBP payments as "pending" because your sandbox accounts are US accounts, either create UK sandbox accounts or set `PAYPAL_CURRENCY=USD`.
+3. Run `python check_paypal.py`: it tests login, checkout, capture, refund and payouts one by one and prints PASS/FAIL.
+4. Run the app, build a PC, press **Approve and pay with PayPal**, and log in with the sandbox buyer account.
+5. If PayPal holds GBP payments as "pending" because your sandbox accounts are US accounts, either create UK sandbox accounts or set `PAYPAL_CURRENCY=USD`.
 
 ### Use it from Claude Desktop (MCP)
 
