@@ -2,13 +2,15 @@
 RigAgent's main pipeline, in one place, so the Streamlit app and the MCP server
 do exactly the same thing:
 
-    words -> requirements (AI) -> pick parts (code) -> check rules (code)
+    words -> requirements (AI) -> pick parts (code) -> live prices (Channel3/eBay)
+          -> pick again with real listings -> check rules (code)
           -> FPS estimate (code) -> explanation (AI)
 """
 import explain_ai
+import live_prices
 from compatibility import check_build
 from performance import fps_table
-from picker import get_options, is_compatible, meets_minimum, pick_build, score, total
+from picker import get_options, is_compatible, meets_minimum, score, total
 from requirements_ai import build_requirements
 
 
@@ -16,14 +18,16 @@ def design_build(budget, condition="new", games=(), resolution=None, target_fps=
                  notes="", explain=True, min_ram_gb=None, min_storage_gb=None):
     """
     Returns a dict:
-      ok, message, requirements, details, build, checks, fps, explanation
-    (build is None, and ok is False, if nothing fits the budget)
+      ok, message, requirements, details, build, checks, fps, explanation, live
+    (build is None, and ok is False, if nothing fits the budget;
+     live is None when prices come from test data)
     """
     requirements, details = build_requirements(budget, condition, games, resolution, target_fps,
                                                notes, min_ram_gb, min_storage_gb)
-    build, message = pick_build(budget, requirements)
+    build, message, live = live_prices.pick(budget, requirements)
     result = {"ok": build is not None, "message": message, "requirements": requirements,
-              "details": details, "build": build, "checks": [], "fps": [], "explanation": ""}
+              "details": details, "build": build, "checks": [], "fps": [], "explanation": "",
+              "live": live}
     if build is None:
         return result
     return _analyse(result, explain)
@@ -74,6 +78,9 @@ def swap_part(result, category, new_part, explain=True):
     return _analyse(dict(result, build=build), explain)
 
 
+SOURCE_NAMES = {"test": "Test price", "channel3": "Live (Channel3)", "ebay": "Live (eBay)"}
+
+
 def build_as_rows(build, agreed_prices=None):
     """Table rows for showing a build (used by the app and the MCP server)."""
     agreed_prices = agreed_prices or {}
@@ -82,5 +89,6 @@ def build_as_rows(build, agreed_prices=None):
         price = agreed_prices.get(part["ListingID"], part["Price"])
         rows.append({"Part": cat, "Name": part["Name"], "Condition": part["Condition"],
                      "Seller": part["Seller"], "Price (£)": round(price, 2),
+                     "Source": SOURCE_NAMES.get(part.get("Source"), part.get("Source")),
                      "ListingID": part["ListingID"]})
     return rows

@@ -3,6 +3,7 @@ Shared steps for every price source (Channel3, eBay):
 
   matches_part()   is this web listing really the part we want?
   save_listings()  upsert into Listing + write today's PriceHistory row
+  save_history()   store the price history Channel3 sent us live
 
 Every fetcher normalises its results to the same shape first:
   {source, external_id, title, price, currency, condition, seller, url}
@@ -95,6 +96,18 @@ def save_listings(part_id, offers):
     finally:
         conn.close()
     return len(offers)
+
+
+def save_history(part_id, points, condition, source):
+    """Write price history fetched live (points = [{"Date", "Price"}]), replacing older copies."""
+    conn = get_connection()
+    try:
+        conn.executemany("INSERT OR REPLACE INTO PriceHistory (PartID, Date, Price, Condition, Source) "
+                         "VALUES (?, ?, ?, ?, ?)",
+                         [(part_id, p["Date"], p["Price"], condition, source) for p in points])
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def parts_to_track():

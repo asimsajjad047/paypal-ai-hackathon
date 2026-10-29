@@ -11,7 +11,6 @@ import streamlit as st
 import agent
 import buy_wait
 import checkout
-import collect_prices
 import config
 import negotiation
 import ui
@@ -126,7 +125,7 @@ def page_design():
     if submitted:
         all_games = games + [g.strip() for g in other.split(",") if g.strip()]
         cond = {"New only": "new", "New + used": "both", "Used where possible": "used"}[condition]
-        with st.spinner("Working out what you need and picking parts..."):
+        with st.spinner("Working out what you need, picking parts and checking live prices..."):
             state.result = agent.design_build(
                 budget, cond, all_games,
                 None if resolution.startswith("Let") else resolution,
@@ -154,6 +153,11 @@ def page_build():
     c2.metric("Platform", build["platform"])
     c3.metric("Checks passed", f"{sum(c['passed'] for c in r['checks'])}/{len(r['checks'])}")
     st.caption(r["message"])
+    if r.get("live"):
+        live = r["live"]
+        names = " and ".join({"channel3": "UK shops (Channel3)", "ebay": "eBay UK"}[s] for s in live["sources"])
+        st.success(f"Live prices: {live['real_parts']} of {len(build['parts'])} parts are real listings "
+                   f"found just now" + (f" on {names}" if names else "") + ".")
 
     clicked = ui.build_3d(build, state.agreed, state.focus, state.effects)
     if clicked is not None:
@@ -162,7 +166,7 @@ def page_build():
         part_card(state.focus, build["parts"][state.focus])
 
     st.dataframe(agent.build_as_rows(build, state.agreed), hide_index=True,
-                 column_order=["Part", "Name", "Condition", "Seller", "Price (£)"])
+                 column_order=["Part", "Name", "Condition", "Seller", "Price (£)", "Source"])
 
     st.subheader("Why this build")
     st.markdown(r["explanation"])
@@ -192,6 +196,8 @@ def page_build():
             st.caption(f"{rating['reason']} (confidence {rating['confidence']:.0%})")
             if rating["history"]:
                 price_chart(rating["history"])
+                st.caption("Real price history, fetched live" if rating["history_source"] == "real"
+                           else "Test price history (add a Channel3 key for the real thing)")
 
     used = [p for p in build["parts"].values() if p["Condition"] == "Used"]
     c1, c2 = st.columns(2)
@@ -393,11 +399,6 @@ def page_watch():
     else:
         st.caption("Design a build to add watches for its parts.")
 
-    if config.CHANNEL3_API_KEY or config.EBAY_CLIENT_ID:
-        if st.button("Fetch live prices (Channel3 + eBay)"):
-            with st.spinner("Fetching prices for every part (takes a minute)..."):
-                collect_prices.main()
-            st.success("Prices updated. Redesign your build to use them.")
     if st.button("Check prices now"):
         hits = watcher.check_watches()
         for h in hits:

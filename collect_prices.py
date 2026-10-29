@@ -1,9 +1,12 @@
 """
-Daily price collector: fetch Channel3 (new) and eBay (used) prices for every
-part, save them, then check price watches.
+Optional bulk price collector: fetch Channel3 (new) and eBay (used) prices for
+EVERY part, save them, then check price watches.
+
+You don't need this for the app: live_prices.py already fetches real prices for
+the parts in a build each time someone asks for one. Running this costs one
+Channel3 credit per part, so only use it if you want every part pre-loaded.
 
 Run by hand:            python collect_prices.py
-On Render:              a Cron Job runs this once a day (see render.yaml)
 Sources with no API key are skipped, so this is safe to run anywhere.
 """
 import config

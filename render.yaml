@@ -64,10 +64,10 @@ services:
       - key: PAYPAL_CLIENT_SECRET
         sync: false
 
-# Daily price collection: each Render service has its own disk, so a separate
-# Cron Job can't write to the web app's SQLite file. For the demo, use the
-# "Fetch live prices" button on the Price watch page instead. With a shared
-# database (e.g. Render Postgres) you could add:
+# Prices are fetched live each time someone asks for a build (live_prices.py),
+# so no daily job is needed. Add CHANNEL3_API_KEY / EBAY_CLIENT_ID /
+# EBAY_CLIENT_SECRET in the dashboard to turn it on. If you ever want every part
+# pre-loaded with a shared database (e.g. Render Postgres), you could add:
 #  - type: cron
 #    name: rigagent-prices
 #    runtime: python

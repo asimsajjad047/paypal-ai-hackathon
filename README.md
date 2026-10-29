@@ -71,9 +71,9 @@ flowchart LR
     APP --> CO[checkout.py]
     CO --> PP[paypal_client.py] --> PAYPAL[(PayPal sandbox<br/>Orders, Payouts, Refunds)]
     PICK --> DB[(SQLite<br/>pcparts.db)]
-    COL[collect_prices.py] --> C3[fetch_channel3.py] --> DB
-    COL --> EB[fetch_ebay.py] --> DB
-    COL --> W[watcher.py]
+    AG --> LIVE[live_prices.py<br/>on every build]
+    LIVE --> C3[fetch_channel3.py<br/>new offers + 90-day history] --> DB
+    LIVE --> EB[fetch_ebay.py<br/>used listings] --> DB
 ```
 
 ### Files
@@ -95,6 +95,7 @@ flowchart LR
 | `paypal_client.py` | PayPal REST calls (plus `MockPayPal` for offline demos) |
 | `checkout.py` | Multi-seller checkout, capture, escrow, refunds, order status |
 | `watcher.py` | Price watch / auto-buy |
+| `live_prices.py` | Looks up real listings and price history for the picked parts on every build |
 | `listings.py`, `fetch_channel3.py`, `fetch_ebay.py`, `collect_prices.py` | Real prices: match web listings to our parts and save them |
 | `mcp_server.py` | MCP server |
 | `check_paypal.py` | Live sandbox check: tests each PayPal call and prints PASS/FAIL |
@@ -157,13 +158,24 @@ Add this to `claude_desktop_config.json`, with your own paths, and restart Claud
 
 Then ask: *"Use RigAgent to design a £1000 PC for Fortnite and give me a checkout link."*
 
-### Fetch real prices
+### Real prices, fetched live
+
+With `CHANNEL3_API_KEY` and/or the eBay keys in `.env`, every build request does this (see `live_prices.py`):
+
+1. Pick a build from the prices we already know.
+2. For each picked part, at the same time: search Channel3 (new, UK shops), fetch that product's live 90-day price history from Channel3, and search eBay UK (used, if allowed).
+3. Pick again. Real listings seen in the last day beat test prices, so the build shows real prices and real "View listing" links.
+4. Buy/wait uses the real history, plus Channel3's own "low / typical / high" verdict on today's price.
+
+Cost: 8 to 16 Channel3 searches per build at 1 credit each (1,000 free a month), plus the history lookups (Channel3's pricing page doesn't list a cost for those). Set `RIGAGENT_OFFLINE_PRICES=true` to save credits while you work on other things. With no keys, test prices are used.
+
+Try the sources one at a time:
 
 ```bash
 python explore_channel3.py           # look at one raw Channel3 response
-python fetch_channel3.py "RTX 4070"  # try matching one part
+python fetch_channel3.py "RTX 4070"  # matching offers + live price history
 python fetch_ebay.py "RTX 3060"      # used listings from eBay UK
-python collect_prices.py             # everything, then check price watches
+python collect_prices.py             # optional: pre-load EVERY part (1 credit each)
 ```
 
 ## Deploy on Render
