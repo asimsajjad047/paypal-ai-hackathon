@@ -45,7 +45,11 @@ APP_BASE_URL = _get("APP_BASE_URL", "http://localhost:8501").rstrip("/")
 CHANNEL3_API_KEY = _get("CHANNEL3_API_KEY")
 EBAY_CLIENT_ID = _get("EBAY_CLIENT_ID")          # eBay "App ID"
 EBAY_CLIENT_SECRET = _get("EBAY_CLIENT_SECRET")  # eBay "Cert ID"
-EBAY_BASE_URL = _get("EBAY_BASE_URL", "https://api.ebay.com")
+# Sandbox keys (App ID contains "-SBX-") only work on eBay's sandbox, which has
+# fake test listings. Production keys (-PRD-) get real eBay listings.
+EBAY_SANDBOX = "-SBX-" in EBAY_CLIENT_ID
+EBAY_BASE_URL = _get("EBAY_BASE_URL", "https://api.sandbox.ebay.com" if EBAY_SANDBOX
+                     else "https://api.ebay.com")
 
 # Live prices: search Channel3/eBay for the picked parts every time someone asks
 # for a build (needs at least one of the keys above). Set to true to turn it off.
@@ -61,7 +65,8 @@ def status():
         "AI (Claude)": "live" if AI_ENABLED else "offline rules",
         "PayPal": f"sandbox ({PAYPAL_CHECKOUT_MODE})" if PAYPAL_ENABLED else "mock checkout",
         "Channel3": "key set" if CHANNEL3_API_KEY else "no key (test data)",
-        "eBay": "key set" if EBAY_CLIENT_ID and EBAY_CLIENT_SECRET else "no key (test data)",
+        "eBay": ("sandbox key (fake eBay listings)" if EBAY_SANDBOX else "key set")
+                if EBAY_CLIENT_ID and EBAY_CLIENT_SECRET else "no key (test data)",
         "Prices": "live on every build" if LIVE_PRICES and (CHANNEL3_API_KEY or EBAY_CLIENT_ID)
                   else "test data",
     }
